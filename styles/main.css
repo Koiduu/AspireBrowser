@@ -1004,3 +1004,94 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ============================================
+   UPDATE BANNER
+   ============================================ */
+.update-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: linear-gradient(90deg, var(--accent-glow), var(--bg-secondary));
+  border-bottom: 1px solid var(--accent);
+  font-size: 12px;
+  color: var(--text-primary);
+  gap: 12px;
+}
+.update-banner.visible { display: flex; }
+.update-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.update-content svg { color: var(--accent); flex-shrink: 0; }
+.update-progress {
+  flex: 1;
+  max-width: 200px;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.update-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+.update-actions { display: flex; align-items: center; gap: 6px; }
+.update-btn {
+  padding: 4px 14px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.update-btn:hover { background: var(--accent-hover); }
+.update-dismiss {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.update-dismiss:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* ============================================
+   POP-OUT BUTTON
+   ============================================ */
+.popout-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  opacity: 0;
+}
+.panel-header { position: relative; }
+.panel-header:hover .popout-btn { opacity: 1; }
+.popout-btn:hover {
+  background: var(--accent);
+  color: white;
+}

@@ -20,6 +20,8 @@ class AspireBrowser {
     this.setupSettings();
     this.setupAI();
     this.setupChat();
+    this.setupAutoUpdate();
+    this.setupPopouts();
     this.createTab('aspire://newtab');
   }
 
@@ -571,6 +573,69 @@ class AspireBrowser {
     ];
     messages.forEach((msg, i) => {
       setTimeout(() => this.addChatMessage(msg.author, msg.text), 500 * (i + 1));
+    });
+  }
+
+  // ---- Auto Update ----
+  setupAutoUpdate() {
+    const banner = document.getElementById('update-banner');
+    const textEl = document.getElementById('update-text');
+    const actionBtn = document.getElementById('update-action');
+    const dismissBtn = document.getElementById('update-dismiss');
+    const progressEl = document.getElementById('update-progress');
+    const progressBar = document.getElementById('update-progress-bar');
+
+    let updateState = 'available'; // available | downloading | ready
+
+    window.aspire.onUpdateAvailable((version) => {
+      updateState = 'available';
+      textEl.textContent = `Aspire v${version} is available!`;
+      actionBtn.textContent = 'Download';
+      progressEl.style.display = 'none';
+      banner.classList.add('visible');
+    });
+
+    window.aspire.onUpdateProgress((percent) => {
+      progressEl.style.display = 'block';
+      progressBar.style.width = `${percent}%`;
+      textEl.textContent = `Downloading update... ${percent}%`;
+    });
+
+    window.aspire.onUpdateDownloaded(() => {
+      updateState = 'ready';
+      textEl.textContent = 'Update ready — restart to apply';
+      actionBtn.textContent = 'Restart';
+      progressEl.style.display = 'none';
+    });
+
+    actionBtn.onclick = () => {
+      if (updateState === 'available') {
+        updateState = 'downloading';
+        actionBtn.textContent = 'Downloading...';
+        actionBtn.disabled = true;
+        window.aspire.downloadUpdate();
+      } else if (updateState === 'ready') {
+        window.aspire.installUpdate();
+      }
+    };
+
+    dismissBtn.onclick = () => {
+      banner.classList.remove('visible');
+    };
+  }
+
+  // ---- Pop-out Panels ----
+  setupPopouts() {
+    document.getElementById('popout-ai').onclick = () => {
+      window.aspire.popoutPanel('ai');
+    };
+
+    document.getElementById('popout-chat').onclick = () => {
+      window.aspire.popoutPanel('chat');
+    };
+
+    window.aspire.onPopoutClosed((panel) => {
+      // Panel returned to sidebar — no special action needed
     });
   }
 

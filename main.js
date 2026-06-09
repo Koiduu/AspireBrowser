@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, session, Menu } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const Store = require('electron-store');
 
@@ -23,6 +24,7 @@ const store = new Store({
 });
 
 let mainWindow;
+let popoutWindows = {};
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -76,7 +78,43 @@ function setupTrackerBlocking() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  setupAutoUpdater();
+});
+
+// ---- Auto Updater ----
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', (info) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-available', info.version);
+    }
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-progress', Math.round(progress.percent));
+    }
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-downloaded');
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.log('Auto-updater error:', err.message);
+  });
+
+  // Check for updates after a short delay
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 5000);
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
@@ -99,3 +137,59 @@ ipcMain.handle('window-maximize', () => {
 });
 ipcMain.handle('window-close', () => mainWindow.close());
 ipcMain.handle('window-is-maximized', () => mainWindow.isMaximized());
+
+// ---- Auto Update IPC ----
+ipcMain.handle('download-update', () => {
+  autoUpdater.downloadUpdate();
+});
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall();
+});
+ipcMain.handle('check-for-updates', () => {
+  autoUpdater.checkForUpdates().catch(() => {});
+});
+
+// ---- Pop-out Windows ----
+ipcMain.handle('popout-panel', (_, panel) => {
+  if (popoutWindows[panel]) {
+    popoutWindows[panel].focus();
+    return;
+  }
+
+  const titles = { ai: 'Aspire AI', chat: 'Guild Chat' };
+  const win = new BrowserWindow({
+    width: 420,
+    height: 600,
+    minWidth: 320,
+    minHeight: 400,
+    frame: false,
+    titleBarStyle: 'hidden',
+    backgroundColor: '#0a0a0f',
+    icon: path.join(__dirname, 'aspire-logo.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  win.loadFile('popout.html', { query: { panel } });
+
+  win.on('closed', () => {
+    delete popoutWindows[panel];
+    if (mainWindow) {
+      mainWindow.webContents.send('popout-closed', panel);
+    }
+  });
+
+  popoutWindows[panel] = win;
+});
+
+ipcMain.handle('popout-minimize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) win.minimize();
+});
+ipcMain.handle('popout-close', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) win.close();
+});

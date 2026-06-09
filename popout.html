@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aspire</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; display: flex; flex-direction: column; height: 100vh; }
+    .popout-titlebar {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 36px; padding: 0 12px; background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border); -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+    .popout-titlebar-info { display: flex; align-items: center; gap: 8px; }
+    .popout-titlebar-info img { width: 18px; height: 18px; border-radius: 4px; }
+    .popout-titlebar-info span { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+    .popout-titlebar-controls { display: flex; gap: 4px; -webkit-app-region: no-drag; }
+    .popout-titlebar-controls button {
+      width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px;
+      color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .popout-titlebar-controls button:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .popout-titlebar-controls .popout-close-btn:hover { background: #e53935; color: white; }
+    .popout-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .popout-body .panel-header { padding: 16px; border-bottom: 1px solid var(--border); }
+    .popout-body .panel-header h3 { margin: 0; font-size: 16px; color: var(--text-primary); }
+    .popout-body .panel-header .panel-subtitle { font-size: 11px; color: var(--text-secondary); }
+    .popout-body .ai-messages, .popout-body .chat-messages { flex: 1; overflow-y: auto; padding: 12px; }
+    .popout-body .ai-input-container, .popout-body .chat-input-container {
+      display: flex; padding: 10px; gap: 8px; border-top: 1px solid var(--border);
+    }
+    .popout-body .ai-input, .popout-body .chat-input {
+      flex: 1; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 12px; color: var(--text-primary); font-size: 13px; outline: none;
+    }
+    .popout-body .ai-input:focus, .popout-body .chat-input:focus { border-color: var(--accent); }
+    .popout-body .ai-send, .popout-body .chat-send {
+      width: 34px; height: 34px; border-radius: 50%; background: var(--accent); border: none;
+      color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+  </style>
+</head>
+<body class="theme-dark">
+  <div class="popout-titlebar">
+    <div class="popout-titlebar-info">
+      <img src="aspire-logo.png" alt="Aspire">
+      <span id="popout-title">Aspire</span>
+    </div>
+    <div class="popout-titlebar-controls">
+      <button id="popout-btn-minimize" title="Minimize">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect y="5" width="12" height="2" fill="currentColor"/></svg>
+      </button>
+      <button class="popout-close-btn" id="popout-btn-close" title="Close">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="popout-body" id="popout-body"></div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const panel = params.get('panel');
+
+    document.getElementById('popout-btn-minimize').onclick = () => window.aspire.popoutMinimize();
+    document.getElementById('popout-btn-close').onclick = () => window.aspire.popoutClose();
+
+    async function init() {
+      const settings = await window.aspire.getSettings();
+
+      // Apply theme
+      document.body.className = `theme-${settings.theme || 'dark'}`;
+      if (settings.accentColor) {
+        document.documentElement.style.setProperty('--accent', settings.accentColor);
+      }
+
+      const body = document.getElementById('popout-body');
+
+      if (panel === 'ai') {
+        document.getElementById('popout-title').textContent = 'Aspire AI';
+        document.title = 'Aspire AI';
+        body.innerHTML = `
+          <div class="panel-header">
+            <h3>Aspire AI</h3>
+            <span class="panel-subtitle">Your creative assistant</span>
+          </div>
+          <div class="ai-messages" id="ai-messages">
+            <div class="ai-message ai-bot">
+              <div class="ai-avatar">\u2728</div>
+              <div class="ai-bubble">Hey! I'm Aspire AI in pop-out mode. Ask me anything!</div>
+            </div>
+          </div>
+          <div class="ai-input-container">
+            <input type="text" class="ai-input" id="ai-input" placeholder="Ask Aspire AI...">
+            <button class="ai-send" id="ai-send">
+              <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l12-6-4 6 4 6z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        `;
+
+        const input = document.getElementById('ai-input');
+        const sendBtn = document.getElementById('ai-send');
+        const send = () => {
+          const msg = input.value.trim();
+          if (!msg) return;
+          addMessage(msg, 'user');
+          input.value = '';
+          getAIResponse(msg, settings);
+        };
+        sendBtn.onclick = send;
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+      }
+
+      if (panel === 'chat') {
+        document.getElementById('popout-title').textContent = 'Guild Chat';
+        document.title = 'Guild Chat';
+        body.innerHTML = `
+          <div class="panel-header">
+            <h3>Guild Chat</h3>
+            <span class="panel-subtitle">Connected to Aspire Guild</span>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-info">Guild chat bridge \u2014 messages sync with your Hypixel guild and Discord</div>
+          </div>
+          <div class="chat-input-container">
+            <input type="text" class="chat-input" id="chat-input" placeholder="Message guild...">
+            <button class="chat-send" id="chat-send">
+              <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l12-6-4 6 4 6z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        `;
+
+        // Demo messages
+        setTimeout(() => addChatMsg('AspireBot', '\ud83d\udfe2 Guild bridge connected!'), 500);
+        setTimeout(() => addChatMsg('System', 'Welcome to Aspire Guild Chat'), 1000);
+
+        const input = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('chat-send');
+        const send = () => {
+          const msg = input.value.trim();
+          if (!msg) return;
+          addChatMsg('You', msg);
+          input.value = '';
+        };
+        sendBtn.onclick = send;
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function addMessage(text, sender) {
+      const container = document.getElementById('ai-messages');
+      const div = document.createElement('div');
+      div.className = `ai-message ai-${sender}`;
+      div.innerHTML = `
+        <div class="ai-avatar">${sender === 'user' ? '\ud83d\udc64' : '\u2728'}</div>
+        <div class="ai-bubble">${escapeHtml(text)}</div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function addChatMsg(author, text) {
+      const container = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      div.innerHTML = `<div><span class="chat-msg-author">${escapeHtml(author)}</span> <span class="chat-msg-text">${escapeHtml(text)}</span></div>`;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function getAIResponse(message, settings) {
+      const apiKey = settings.groqApiKey;
+      if (!apiKey) {
+        addMessage("I need a Groq API key to chat! Add one in the main browser's Settings.", 'bot');
+        return;
+      }
+
+      const personalities = {
+        creative: "You are Aspire AI, a creative and friendly assistant for Minecraft builders. Keep responses concise and fun.",
+        professional: "You are Aspire AI, a professional assistant. Be concise and direct.",
+        playful: "You are Aspire AI, a playful and energetic assistant! Keep it short and engaging.",
+        mentor: "You are Aspire AI, a patient mentor and teacher. Explain things clearly."
+      };
+
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'llama-3.1-8b-instant',
+            messages: [
+              { role: 'system', content: personalities[settings.aiPersonality || 'creative'] },
+              { role: 'user', content: message }
+            ],
+            max_tokens: 300, temperature: 0.7
+          })
+        });
+        const data = await response.json();
+        if (data.choices && data.choices[0]) {
+          addMessage(data.choices[0].message.content, 'bot');
+        } else {
+          addMessage("Hmm, I couldn't process that. Try again?", 'bot');
+        }
+      } catch (err) {
+        addMessage("Connection error \u2014 check your API key and internet.", 'bot');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

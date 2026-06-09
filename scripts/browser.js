@@ -416,6 +416,8 @@ class AspireBrowser {
     document.getElementById('setting-https').checked = this.settings.httpsOnly !== false;
     document.getElementById('setting-adblock').checked = this.settings.adBlock !== false;
     document.getElementById('setting-search').value = this.settings.searchEngine || 'https://www.google.com/search?q=';
+    document.getElementById('setting-discord-clientid').value = this.settings.discordClientId || '';
+    document.getElementById('setting-bridge-url').value = this.settings.bridgeUrl || '';
     document.getElementById('setting-apikey').value = this.settings.groqApiKey || '';
     document.getElementById('setting-personality').value = this.settings.aiPersonality || 'creative';
 
@@ -447,6 +449,16 @@ class AspireBrowser {
     document.getElementById('setting-search').onchange = (e) => {
       this.settings.searchEngine = e.target.value;
       window.aspire.setSetting('searchEngine', e.target.value);
+    };
+
+    document.getElementById('setting-discord-clientid').onchange = (e) => {
+      this.settings.discordClientId = e.target.value;
+      window.aspire.setSetting('discordClientId', e.target.value);
+    };
+
+    document.getElementById('setting-bridge-url').onchange = (e) => {
+      this.settings.bridgeUrl = e.target.value;
+      window.aspire.setSetting('bridgeUrl', e.target.value);
     };
 
     document.getElementById('setting-apikey').onchange = (e) => {
@@ -534,29 +546,139 @@ class AspireBrowser {
 
   // ---- Guild Chat ----
   setupChat() {
+    this.ws = null;
+    this.discordUser = null;
+
+    const signinEl = document.getElementById('chat-signin');
+    const connectedEl = document.getElementById('chat-connected');
+    const loginBtn = document.getElementById('discord-login-btn');
+    const logoutBtn = document.getElementById('discord-logout-btn');
+    const statusEl = document.getElementById('chat-status');
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send');
 
     const send = () => {
       const msg = input.value.trim();
       if (!msg) return;
-      this.addChatMessage('You', msg);
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: 'chat', text: msg }));
+        this.addChatMessage(this.discordUser.username, msg, this.discordUser.avatar);
+      }
       input.value = '';
-      // In a real integration, this would send to the guild bridge
     };
 
     sendBtn.onclick = send;
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
 
-    // Simulate some guild chat activity for demo
-    this.simulateGuildChat();
+    loginBtn.onclick = async () => {
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Signing in...';
+      const result = await window.aspire.discordLogin();
+      if (result.success) {
+        this.showChatConnected(result.user);
+      } else {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M13.545 2.907a13.227 13.227 0 00-3.257-1.011.05.05 0 00-.052.025c-.141.25-.297.577-.406.833a12.19 12.19 0 00-3.658 0 8.258 8.258 0 00-.412-.833.051.051 0 00-.052-.025c-1.125.194-2.22.534-3.257 1.011a.046.046 0 00-.021.018C.356 6.024-.213 9.047.066 12.032c.001.014.01.028.021.037a13.276 13.276 0 003.995 2.02.05.05 0 00.056-.019c.308-.42.582-.863.818-1.329a.05.05 0 00-.028-.07 8.735 8.735 0 01-1.248-.595.05.05 0 01-.005-.084c.084-.063.168-.128.248-.195a.05.05 0 01.051-.007c2.619 1.196 5.454 1.196 8.041 0a.052.052 0 01.053.007c.08.066.164.132.248.195a.051.051 0 01-.004.085c-.399.233-.813.44-1.249.594a.05.05 0 00-.027.07c.24.465.515.909.817 1.329a.05.05 0 00.056.019 13.235 13.235 0 004-2.02.051.051 0 00.021-.037c.334-3.451-.559-6.449-2.366-9.106a.04.04 0 00-.02-.019z" fill="currentColor"/></svg> Sign in with Discord';
+        statusEl.textContent = result.error || 'Sign-in failed';
+      }
+    };
+
+    logoutBtn.onclick = async () => {
+      await window.aspire.discordLogout();
+      this.disconnectBridge();
+      this.discordUser = null;
+      signinEl.style.display = '';
+      connectedEl.style.display = 'none';
+      statusEl.textContent = 'Sign in to connect';
+    };
+
+    // Check if already signed in
+    this.restoreDiscordSession();
   }
 
-  addChatMessage(author, text) {
+  async restoreDiscordSession() {
+    const user = await window.aspire.getDiscordUser();
+    if (user && user.accessToken) {
+      this.showChatConnected(user);
+    }
+  }
+
+  showChatConnected(user) {
+    this.discordUser = user;
+    document.getElementById('chat-signin').style.display = 'none';
+    document.getElementById('chat-connected').style.display = 'flex';
+    document.getElementById('chat-user-name').textContent = user.username;
+    if (user.avatar) {
+      document.getElementById('chat-user-avatar').src = user.avatar;
+      document.getElementById('chat-user-avatar').style.display = '';
+    }
+    document.getElementById('chat-status').textContent = 'Connecting...';
+    this.connectBridge(user);
+  }
+
+  connectBridge(user) {
+    const bridgeUrl = this.settings.bridgeUrl;
+    if (!bridgeUrl) {
+      document.getElementById('chat-status').textContent = 'Set Bridge URL in Settings';
+      this.addChatMessage('System', 'Set the Bridge URL in Settings to connect to your guild chat.');
+      return;
+    }
+
+    try {
+      this.ws = new WebSocket(bridgeUrl);
+    } catch (err) {
+      document.getElementById('chat-status').textContent = 'Connection failed';
+      return;
+    }
+
+    this.ws.onopen = () => {
+      this.ws.send(JSON.stringify({ type: 'auth', token: user.accessToken }));
+    };
+
+    this.ws.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+
+      if (msg.type === 'auth_ok') {
+        document.getElementById('chat-status').textContent = 'Connected to guild';
+        this.addChatMessage('AspireBot', 'Connected to guild chat!');
+      } else if (msg.type === 'auth_error') {
+        document.getElementById('chat-status').textContent = 'Auth failed — re-sign in';
+      } else if (msg.type === 'chat') {
+        this.addChatMessage(msg.author, msg.text, msg.avatar);
+      }
+    };
+
+    this.ws.onclose = () => {
+      document.getElementById('chat-status').textContent = 'Disconnected';
+      // Auto-reconnect after 5s
+      setTimeout(() => {
+        if (this.discordUser) this.connectBridge(this.discordUser);
+      }, 5000);
+    };
+
+    this.ws.onerror = () => {
+      document.getElementById('chat-status').textContent = 'Connection error';
+    };
+  }
+
+  disconnectBridge() {
+    if (this.ws) {
+      this.ws.onclose = null;
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  addChatMessage(author, text, avatarUrl) {
     const container = document.getElementById('chat-messages');
     const div = document.createElement('div');
     div.className = 'chat-msg';
+    const avatarHtml = avatarUrl
+      ? `<img class="chat-msg-avatar" src="${avatarUrl}" alt="">`
+      : `<div class="chat-msg-avatar-placeholder"></div>`;
     div.innerHTML = `
+      ${avatarHtml}
       <div>
         <span class="chat-msg-author">${this.escapeHtml(author)}</span>
         <span class="chat-msg-text">${this.escapeHtml(text)}</span>
@@ -564,16 +686,6 @@ class AspireBrowser {
     `;
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
-  }
-
-  simulateGuildChat() {
-    const messages = [
-      { author: 'AspireBot', text: '🟢 Guild bridge connected!' },
-      { author: 'System', text: 'Welcome to Aspire Guild Chat' }
-    ];
-    messages.forEach((msg, i) => {
-      setTimeout(() => this.addChatMessage(msg.author, msg.text), 500 * (i + 1));
-    });
   }
 
   // ---- Auto Update ----

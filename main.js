@@ -193,3 +193,94 @@ ipcMain.handle('popout-close', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) win.close();
 });
+
+// ---- Discord OAuth ----
+ipcMain.handle('discord-login', async () => {
+  const clientId = store.get('discordClientId');
+  if (!clientId) {
+    return { error: 'Set your Discord Client ID in Settings first.' };
+  }
+
+  const redirectUri = 'http://localhost:59283/callback';
+  const scope = 'identify';
+  const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`;
+
+  return new Promise((resolve) => {
+    const http = require('http');
+    let server;
+
+    // Temporary local server to capture the OAuth callback
+    server = http.createServer(async (req, res) => {
+      const url = new URL(req.url, 'http://localhost:59283');
+      const code = url.searchParams.get('code');
+
+      if (code) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('<html><body style="background:#0a0a0f;color:#f0f0f5;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h2>Signed in! You can close this window.</h2></body></html>');
+
+        try {
+          // Exchange code for token
+          const fetch = require('electron').net.fetch || globalThis.fetch;
+          const tokenRes = await (await fetch('https://discord.com/api/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: clientId,
+              grant_type: 'authorization_code',
+              code,
+              redirect_uri: redirectUri
+            }).toString()
+          })).json();
+
+          if (tokenRes.access_token) {
+            // Get user info
+            const userRes = await (await fetch('https://discord.com/api/v10/users/@me', {
+              headers: { Authorization: `Bearer ${tokenRes.access_token}` }
+            })).json();
+
+            const userData = {
+              id: userRes.id,
+              username: userRes.global_name || userRes.username,
+              avatar: userRes.avatar
+                ? `https://cdn.discordapp.com/avatars/${userRes.id}/${userRes.avatar}.png`
+                : null,
+              accessToken: tokenRes.access_token
+            };
+
+            store.set('discordUser', userData);
+            resolve({ success: true, user: userData });
+          } else {
+            resolve({ error: 'Failed to get access token' });
+          }
+        } catch (err) {
+          resolve({ error: err.message });
+        }
+
+        server.close();
+      }
+    });
+
+    server.listen(59283, () => {
+      const authWin = new BrowserWindow({
+        width: 500,
+        height: 700,
+        autoHideMenuBar: true,
+        icon: path.join(__dirname, 'aspire-logo.png')
+      });
+      authWin.loadURL(authUrl);
+      authWin.on('closed', () => {
+        server.close();
+        resolve({ error: 'Auth window closed' });
+      });
+    });
+  });
+});
+
+ipcMain.handle('discord-logout', () => {
+  store.delete('discordUser');
+  return true;
+});
+
+ipcMain.handle('get-discord-user', () => {
+  return store.get('discordUser') || null;
+});

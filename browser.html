@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aspire</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="theme-dark">
+  <!-- Title Bar -->
+  <div class="titlebar" id="titlebar">
+    <div class="titlebar-drag">
+      <img src="aspire-logo.png" class="titlebar-logo" alt="Aspire">
+      <span class="titlebar-title">Aspire</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="btn-minimize" title="Minimize">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect y="5" width="12" height="2" fill="currentColor"/></svg>
+      </button>
+      <button class="titlebar-btn" id="btn-maximize" title="Maximize">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+      </button>
+      <button class="titlebar-btn titlebar-close" id="btn-close" title="Close">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tabbar" id="tabbar">
+    <div class="tabs-container" id="tabs-container"></div>
+    <button class="tab-new" id="btn-new-tab" title="New Tab">
+      <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <!-- Navigation Bar -->
+  <div class="navbar" id="navbar">
+    <div class="nav-controls">
+      <button class="nav-btn" id="btn-back" title="Back" disabled>
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="nav-btn" id="btn-forward" title="Forward" disabled>
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="nav-btn" id="btn-reload" title="Reload">
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 11-1.5-3.8M13.5 2v2.5H11" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="url-bar-container">
+      <div class="url-bar" id="url-bar">
+        <svg class="url-icon" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M7 1.5v11M1.5 7h11M2 4.5h10M2 9.5h10" stroke="currentColor" stroke-width="0.8" fill="none" opacity="0.6"/></svg>
+        <input type="text" class="url-input" id="url-input" placeholder="Search or enter URL..." spellcheck="false" autocomplete="off">
+        <button class="url-secure" id="url-secure" title="Secure connection">
+          <svg width="12" height="12" viewBox="0 0 12 12"><rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M4 5V3.5a2 2 0 114 0V5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <button class="nav-btn" id="btn-sidebar" title="Toggle Sidebar (AI & Chat)">
+        <svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="10" y1="2" x2="10" y2="14" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <button class="nav-btn" id="btn-settings" title="Settings">
+        <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M13 3l-1.5 1.5M4.5 11.5L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="main-content">
+    <!-- Webview Container -->
+    <div class="webview-container" id="webview-container"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" data-panel="ai" title="AI Assistant">
+          <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="9" cy="9" r="2" fill="currentColor"/><path d="M9 2v3M9 13v3M2 9h3M13 9h3" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.6"/></svg>
+          <span>AI</span>
+        </button>
+        <button class="sidebar-tab" data-panel="chat" title="Guild Chat">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 4h12a1 1 0 011 1v7a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          <span>Chat</span>
+        </button>
+        <button class="sidebar-tab" data-panel="bookmarks" title="Quick Access">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M5 2h8a1 1 0 011 1v13l-5-3-5 3V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          <span>Pins</span>
+        </button>
+      </div>
+      <div class="sidebar-content">
+        <!-- AI Panel -->
+        <div class="sidebar-panel active" id="panel-ai">
+          <div class="panel-header">
+            <h3>Aspire AI</h3>
+            <span class="panel-subtitle">Your creative assistant</span>
+          </div>
+          <div class="ai-messages" id="ai-messages">
+            <div class="ai-message ai-bot">
+              <div class="ai-avatar">✨</div>
+              <div class="ai-bubble">Hey! I'm Aspire AI — your creative companion. Ask me anything about builds, design, or just chat!</div>
+            </div>
+          </div>
+          <div class="ai-input-container">
+            <input type="text" class="ai-input" id="ai-input" placeholder="Ask Aspire AI...">
+            <button class="ai-send" id="ai-send">
+              <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l12-6-4 6 4 6z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Chat Panel -->
+        <div class="sidebar-panel" id="panel-chat">
+          <div class="panel-header">
+            <h3>Guild Chat</h3>
+            <span class="panel-subtitle">Connected to Aspire Guild</span>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-info">Guild chat bridge — messages sync with your Hypixel guild and Discord</div>
+          </div>
+          <div class="chat-input-container">
+            <input type="text" class="chat-input" id="chat-input" placeholder="Message guild...">
+            <button class="chat-send" id="chat-send">
+              <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l12-6-4 6 4 6z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Bookmarks Panel -->
+        <div class="sidebar-panel" id="panel-bookmarks">
+          <div class="panel-header">
+            <h3>Quick Access</h3>
+            <span class="panel-subtitle">Your pinned sites</span>
+          </div>
+          <div class="bookmarks-list" id="bookmarks-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Overlay -->
+  <div class="settings-overlay" id="settings-overlay">
+    <div class="settings-panel">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button class="settings-close" id="settings-close">
+          <svg width="20" height="20" viewBox="0 0 20 20"><path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-section">
+          <h3>Appearance</h3>
+          <div class="setting-row">
+            <label>Theme</label>
+            <select id="setting-theme">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="midnight">Midnight</option>
+              <option value="aurora">Aurora</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label>Accent Color</label>
+            <input type="color" id="setting-accent" value="#6c5ce7">
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Privacy & Security</h3>
+          <div class="setting-row">
+            <label>Block Trackers</label>
+            <input type="checkbox" id="setting-trackers" checked>
+          </div>
+          <div class="setting-row">
+            <label>HTTPS Only Mode</label>
+            <input type="checkbox" id="setting-https" checked>
+          </div>
+          <div class="setting-row">
+            <label>Block Ads</label>
+            <input type="checkbox" id="setting-adblock" checked>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Search</h3>
+          <div class="setting-row">
+            <label>Search Engine</label>
+            <select id="setting-search">
+              <option value="https://www.google.com/search?q=">Google</option>
+              <option value="https://duckduckgo.com/?q=">DuckDuckGo</option>
+              <option value="https://www.bing.com/search?q=">Bing</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>AI Assistant</h3>
+          <div class="setting-row">
+            <label>API Key (Groq)</label>
+            <input type="password" id="setting-apikey" placeholder="Enter your Groq API key...">
+          </div>
+          <div class="setting-row">
+            <label>AI Personality</label>
+            <select id="setting-personality">
+              <option value="creative">Creative & Friendly</option>
+              <option value="professional">Professional</option>
+              <option value="playful">Playful & Fun</option>
+              <option value="mentor">Mentor / Teacher</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/browser.js"></script>
+</body>
+</html>

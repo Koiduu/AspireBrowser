@@ -117,36 +117,89 @@
       if (panel === 'chat') {
         document.getElementById('popout-title').textContent = 'Guild Chat';
         document.title = 'Guild Chat';
-        body.innerHTML = `
-          <div class="panel-header">
-            <h3>Guild Chat</h3>
-            <span class="panel-subtitle">Connected to Aspire Guild</span>
-          </div>
-          <div class="chat-messages" id="chat-messages">
-            <div class="chat-info">Guild chat bridge \u2014 messages sync with your Hypixel guild and Discord</div>
-          </div>
-          <div class="chat-input-container">
-            <input type="text" class="chat-input" id="chat-input" placeholder="Message guild...">
-            <button class="chat-send" id="chat-send">
-              <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l12-6-4 6 4 6z" fill="currentColor"/></svg>
-            </button>
-          </div>
-        `;
 
-        // Demo messages
-        setTimeout(() => addChatMsg('AspireBot', '\ud83d\udfe2 Guild bridge connected!'), 500);
-        setTimeout(() => addChatMsg('System', 'Welcome to Aspire Guild Chat'), 1000);
+        const user = await window.aspire.getDiscordUser();
 
-        const input = document.getElementById('chat-input');
-        const sendBtn = document.getElementById('chat-send');
-        const send = () => {
-          const msg = input.value.trim();
-          if (!msg) return;
-          addChatMsg('You', msg);
-          input.value = '';
-        };
-        sendBtn.onclick = send;
-        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+        if (user && user.accessToken) {
+          body.innerHTML = `
+            <div class="panel-header">
+              <h3>Guild Chat</h3>
+              <span class="panel-subtitle" id="popout-chat-status">Connecting...</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg-tertiary);">
+              ${user.avatar ? `<img src="${user.avatar}" style="width:24px;height:24px;border-radius:50%">` : ''}
+              <span style="flex:1;font-size:12px;font-weight:600;color:var(--text-primary)">${escapeHtml(user.username)}</span>
+              <button id="popout-logout" style="width:28px;height:28px;border:none;background:transparent;border-radius:6px;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center" title="Sign out">
+                <svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 1H3a2 2 0 00-2 2v8a2 2 0 002 2h2M9 10l3-3-3-3M12 7H5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-container">
+              <input type="text" class="chat-input" id="chat-input" placeholder="Message guild...">
+              <button class="chat-send" id="chat-send">
+                <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l12-6-4 6 4 6z" fill="currentColor"/></svg>
+              </button>
+            </div>
+          `;
+
+          document.getElementById('popout-logout').onclick = async () => {
+            await window.aspire.discordLogout();
+            window.location.reload();
+          };
+
+          // Connect to bridge
+          const bridgeUrl = settings.bridgeUrl;
+          let ws = null;
+          const statusEl = document.getElementById('popout-chat-status');
+
+          if (bridgeUrl) {
+            ws = new WebSocket(bridgeUrl);
+            ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token: user.accessToken }));
+            ws.onmessage = (event) => {
+              let msg;
+              try { msg = JSON.parse(event.data); } catch { return; }
+              if (msg.type === 'auth_ok') {
+                statusEl.textContent = 'Connected to guild';
+                addChatMsg('AspireBot', 'Connected to guild chat!');
+              } else if (msg.type === 'auth_error') {
+                statusEl.textContent = 'Auth failed';
+              } else if (msg.type === 'chat') {
+                addChatMsg(msg.author, msg.text, msg.avatar);
+              }
+            };
+            ws.onclose = () => { statusEl.textContent = 'Disconnected'; };
+            ws.onerror = () => { statusEl.textContent = 'Connection error'; };
+          } else {
+            statusEl.textContent = 'Set Bridge URL in Settings';
+            addChatMsg('System', 'Set the Bridge URL in main browser Settings to connect.');
+          }
+
+          const input = document.getElementById('chat-input');
+          const sendBtn = document.getElementById('chat-send');
+          const send = () => {
+            const msg = input.value.trim();
+            if (!msg) return;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'chat', text: msg }));
+              addChatMsg(user.username, msg, user.avatar);
+            }
+            input.value = '';
+          };
+          sendBtn.onclick = send;
+          input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+
+        } else {
+          body.innerHTML = `
+            <div class="panel-header">
+              <h3>Guild Chat</h3>
+              <span class="panel-subtitle">Sign in to connect</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:32px 20px;gap:16px;text-align:center">
+              <svg width="48" height="48" viewBox="0 0 48 48"><path d="M40.634 6.98A39.09 39.09 0 0030.68 4a.15.15 0 00-.16.08 27.14 27.14 0 00-1.2 2.44 36.1 36.1 0 00-10.64 0A24.9 24.9 0 0017.48 4.08a.16.16 0 00-.16-.08 39 39 0 00-9.95 2.98.14.14 0 00-.07.06C1.06 16.46-.64 25.64.2 34.72a.17.17 0 00.06.12 39.32 39.32 0 0011.84 5.8.16.16 0 00.17-.06 28.1 28.1 0 002.42-3.82.15.15 0 00-.08-.22 25.9 25.9 0 01-3.7-1.72.16.16 0 01-.02-.26c.25-.18.5-.37.74-.56a.15.15 0 01.16-.02 28.04 28.04 0 0024.22 0 .15.15 0 01.16.02c.24.2.5.38.74.56a.16.16 0 01-.01.26 24.3 24.3 0 01-3.7 1.72.16.16 0 00-.08.22 31.5 31.5 0 002.42 3.82.16.16 0 00.17.06 39.2 39.2 0 0011.86-5.8.16.16 0 00.06-.12c1-10.34-1.68-19.32-7.1-27.28a.13.13 0 00-.07-.06zM16.04 29.56c-2.42 0-4.42-2.2-4.42-4.88s1.96-4.88 4.42-4.88c2.48 0 4.46 2.22 4.42 4.88 0 2.68-1.96 4.88-4.42 4.88zm16.36 0c-2.42 0-4.42-2.2-4.42-4.88s1.96-4.88 4.42-4.88c2.48 0 4.46 2.22 4.42 4.88 0 2.68-1.94 4.88-4.42 4.88z" fill="currentColor" opacity="0.4"/></svg>
+              <p style="font-size:13px;color:var(--text-secondary)">Sign in with Discord in the main browser to use Guild Chat</p>
+            </div>
+          `;
+        }
       }
     }
 
@@ -168,11 +221,14 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    function addChatMsg(author, text) {
+    function addChatMsg(author, text, avatarUrl) {
       const container = document.getElementById('chat-messages');
       const div = document.createElement('div');
       div.className = 'chat-msg';
-      div.innerHTML = `<div><span class="chat-msg-author">${escapeHtml(author)}</span> <span class="chat-msg-text">${escapeHtml(text)}</span></div>`;
+      const avatarHtml = avatarUrl
+        ? `<img src="${avatarUrl}" style="width:20px;height:20px;border-radius:50%;flex-shrink:0">`
+        : `<div style="width:20px;height:20px;border-radius:50%;background:var(--bg-tertiary);flex-shrink:0"></div>`;
+      div.innerHTML = `${avatarHtml}<div><span class="chat-msg-author">${escapeHtml(author)}</span> <span class="chat-msg-text">${escapeHtml(text)}</span></div>`;
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
     }

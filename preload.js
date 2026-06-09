@@ -20,5 +20,10 @@ contextBridge.exposeInMainWorld('aspire', {
   popoutPanel: (panel) => ipcRenderer.invoke('popout-panel', panel),
   onPopoutClosed: (cb) => ipcRenderer.on('popout-closed', (_, panel) => cb(panel)),
   popoutMinimize: () => ipcRenderer.invoke('popout-minimize'),
-  popoutClose: () => ipcRenderer.invoke('popout-close')
+  popoutClose: () => ipcRenderer.invoke('popout-close'),
+
+  // Discord
+  discordLogin: () => ipcRenderer.invoke('discord-login'),
+  discordLogout: () => ipcRenderer.invoke('discord-logout'),
+  getDiscordUser: () => ipcRenderer.invoke('get-discord-user')
 });

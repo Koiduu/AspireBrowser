@@ -1,0 +1,45 @@
+{
+  "name": "aspire-browser",
+  "version": "1.0.0",
+  "description": "Aspire — A clean, secure, meditative browser with AI assistant and guild chat",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "author": "Aspire Guild",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
+  "build": {
+    "appId": "com.aspire.browser",
+    "productName": "Aspire",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "aspire-logo.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "aspire-logo.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "aspire-logo.png"
+    }
+  }
+}
